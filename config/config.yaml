@@ -1,0 +1,81 @@
+# Конфигурация расчета резервов МСФО 17 по пенсионным аннуитетам.
+# Пути указываются относительно корня проекта (папка, содержащая config/).
+
+entity:
+  name: "Демо СК по страхованию жизни"
+  currency: KZT
+  report_units: 1000          # единицы отчетов: 1000 = тыс. тенге
+
+source:
+  type: csv                   # csv | dwh
+  csv_dir: data/demo
+  dwh_url_env: DWH_URL        # URL SQLAlchemy берется из переменной окружения
+  dwh_schema: null            # схема витрин в DWH (null = схема по умолчанию)
+  views:
+    contracts: v_annuity_contracts
+    cashflows: v_annuity_cashflows
+    curve: v_discount_curve
+
+results_store:
+  url: sqlite:///output/results.db   # или, например, oracle+oracledb://...; переменная RESULTS_URL переопределяет
+  schema: null                       # для DWH: ifrs17_res
+
+output_dir: output
+
+policy:
+  measurement_model: GMM
+  ifie_disaggregation: OCI            # OCI | PL (п.88)
+  ra_disaggregation: false            # п.81: разделять ли изменение RA на финансовую часть
+  interim_approach: period_to_period  # B137
+  coverage_units: annuity_to_living   # B119
+  guarantee_as_investment_component: true
+  no_sig_risk_threshold: 0.06         # CSM/премия при признании
+  cohort: annual
+  max_age: 110
+  tolerance: 0.5                      # допуск контролей, тенге
+
+portfolios:
+  PA_LIFE: PENSION_ANNUITY
+  PA_GUAR: PENSION_ANNUITY
+
+discount:
+  illiquidity_premium: 0.005
+  llp_years: 10
+  ufr: 0.09
+  convergence_years: 20
+
+assumptions:
+  - version: "2024.1"
+    effective_from: 2024-01-31
+    mortality:
+      table: config/tables/mortality_demo.csv
+      base_year: 2024
+      experience_factor: {M: 1.00, F: 1.00}
+      improvement: 0.010
+    expenses:
+      per_policy_monthly: 1500.0
+      pct_of_payments: 0.005
+      inflation: 0.07
+      base_period: 2024-01
+    ra:
+      confidence_level: 0.75
+      mortality_shock_995: 0.20
+      expense_shock_995: 0.10
+
+  # Пересмотр допущений по итогам исследования опыта: смертность ниже, расходы выше.
+  - version: "2025.2"
+    effective_from: 2025-12-31
+    mortality:
+      table: config/tables/mortality_demo.csv
+      base_year: 2024
+      experience_factor: {M: 0.95, F: 0.95}
+      improvement: 0.010
+    expenses:
+      per_policy_monthly: 1650.0
+      pct_of_payments: 0.005
+      inflation: 0.07
+      base_period: 2024-01
+    ra:
+      confidence_level: 0.75
+      mortality_shock_995: 0.20
+      expense_shock_995: 0.10
